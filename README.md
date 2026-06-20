@@ -1,7 +1,7 @@
 # Plant_Disease_Detection
 This is a plant disease detection system made in Deep Learning CNN.
 Plant diseases are a major threat to global food security and sustainability. Identification and timely treatment of plant diseases can save crops, reduce costs, and improve yield. However, early detection and diagnosis of plant diseases can be challenging and time-consuming, requiring expert knowledge and experience. Advances in computer vision and machine learning techniques have paved the way for the development of automated systems that can help farmers and plant pathologists to detect plant diseases quickly and accurately.
-1.1	Aim
+
 The aim of this project is to develop a plant disease detection system that can identify the presence of diseases in crops using image processing and deep learning techniques. The system will be able to classify images of plants into healthy or diseased categories, and if the plant is diseased, the system will be able to identify the type of disease present.
 1.2	Objectives 
 The objectives of the project are as follows:
