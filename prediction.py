@@ -5,9 +5,12 @@ import pathlib
 from tensorflow import keras
 from tensorflow.keras import layers
 
-data_dir = "C:/Users/SowaibaArshad/PycharmProjects/PlantVillage/PlantVillage-Dataset-master/raw/CNN/Train"
+# Relative path — must match the dataset folder used in main5.py
+data_dir = "data/Train"
 class_names = sorted([item.name for item in pathlib.Path(data_dir).glob('*')])
-model_path = "C:/Users/SowaibaArshad/PycharmProjects/DIP_Project/my_model.h5"
+
+# Relative path — must match where main5.py saved the model
+model_path = "models/my_model.h5"
 model = keras.models.load_model(model_path)
 
 def recogout():
@@ -16,6 +19,7 @@ def recogout():
         img = keras.preprocessing.image.load_img(img_path, target_size=(224, 224))
         img_array = keras.preprocessing.image.img_to_array(img)
         img_array = tf.expand_dims(img_array, 0)
+
         predictions = model.predict(img_array)
         score = tf.nn.softmax(predictions[0])
 
