@@ -1,17 +1,33 @@
-# Plant_Disease_Detection
-This is a plant disease detection system made in Deep Learning CNN.
-Plant diseases are a major threat to global food security and sustainability. Identification and timely treatment of plant diseases can save crops, reduce costs, and improve yield. However, early detection and diagnosis of plant diseases can be challenging and time-consuming, requiring expert knowledge and experience. Advances in computer vision and machine learning techniques have paved the way for the development of automated systems that can help farmers and plant pathologists to detect plant diseases quickly and accurately.
+# Plant Disease Detection
 
-The aim of this project is to develop a plant disease detection system that can identify the presence of diseases in crops using image processing and deep learning techniques. The system will be able to classify images of plants into healthy or diseased categories, and if the plant is diseased, the system will be able to identify the type of disease present.
-1.2	Objectives 
-The objectives of the project are as follows:
-•	To develop an image processing pipeline to pre-process and prepare plant images for analysis.
-•	To train a deep learning model to classify plant images into healthy or diseased categories.
-•	To extend the deep learning model to identify the type of disease present in diseased plants.
-•	To evaluate the performance of the plant disease detection system on a large dataset of plant images.
-1.3	Contributions 
-The contributions of this project are as follows:
-•	Development of a robust image processing pipeline that can handle various types of plant images.
-•	Creation of a deep learning model that can accurately classify plant images into healthy or diseased categories.
-•	Extension of the deep learning model to identify the type of disease present in diseased plants.
-•	Evaluation of the performance of the plant disease detection system on a large dataset of plant images, demonstrating its effectiveness and potential to assist farmers and plant pathologists in the identification and treatment of plant diseases.
+A deep learning system that detects and classifies plant diseases from leaf images using a Convolutional Neural Network (CNN).
+
+## Overview
+
+Plant diseases are a major threat to global food security. Early detection helps farmers act before crops are lost. This project uses a CNN trained on the PlantVillage dataset to classify leaf images into 8 categories — identifying whether a plant is healthy or affected by a specific disease.
+
+
+## How It Works
+
+1. **Training (`training.py`)** — Loads labeled leaf images, builds a CNN with 3 convolutional layers, and trains it to classify images into 8 disease/health categories.
+2. **Prediction (`prediction.py`)** — Loads the trained model, lets you pick an image via a file dialog, and predicts the disease class with a confidence score.
+
+## Tech Stack
+
+- Python
+- TensorFlow / Keras
+- EasyGUI (file selection)
+- NumPy, Matplotlib
+
+## Dataset
+
+Trained on the [PlantVillage Dataset](https://github.com/spMohanty/PlantVillage-Dataset) — a public dataset of labeled plant leaf images.
+
+
+## Notes
+
+- Update the `data_dir` and `model_path` variables in `training.py` and `prediction.py` to match your local dataset/model location before running.
+
+## License
+
+This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
