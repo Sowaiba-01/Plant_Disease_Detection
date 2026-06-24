@@ -17,9 +17,8 @@ from pathlib import Path
 import numpy as np
 import tensorflow as tf
 import matplotlib.pyplot as plt
-
-from data_loader import load_datasets
-from model import build_model, unfreeze_top_layers
+from src.data_loader import load_datasets   
+from src.model import build_model           
 
 
 # ── Config ────────────────────────────────────────────────────────────────────
