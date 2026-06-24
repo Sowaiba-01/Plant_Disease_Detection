@@ -1,14 +1,3 @@
-"""
-Train the plant disease detection model.
-
-Usage:
-    export DATA_DIR="data/PlantVillage"
-    python src/train.py
-
-Or on Windows:
-    set DATA_DIR=data/PlantVillage
-    python src/train.py
-"""
 
 import os
 import json
@@ -17,20 +6,21 @@ from pathlib import Path
 import numpy as np
 import tensorflow as tf
 import matplotlib.pyplot as plt
-from src.data_loader import load_datasets   
-from src.model import build_model           
+
+from src.data_loader import load_datasets        
+from src.model import build_model, unfreeze_top_layers 
 
 
 # ── Config ────────────────────────────────────────────────────────────────────
-DATA_DIR   = os.getenv("DATA_DIR", "data/PlantVillage")
-MODEL_DIR  = Path("models")
-MODEL_PATH = MODEL_DIR / "best_model.keras"
-HISTORY_PATH = MODEL_DIR / "history.json"
-PLOTS_DIR  = Path("reports/figures")
+DATA_DIR      = os.getenv("DATA_DIR", "data/PlantVillage")
+MODEL_DIR     = Path("models")
+MODEL_PATH    = MODEL_DIR / "best_model.keras"
+HISTORY_PATH  = MODEL_DIR / "history.json"
+PLOTS_DIR     = Path("reports/figures")
 
-EPOCHS_HEAD  = 15   # Phase 1: train only the classification head
-EPOCHS_FINETUNE = 10  # Phase 2: fine-tune top layers of backbone
-BATCH_SIZE   = 32
+EPOCHS_HEAD     = 15   # Phase 1: train only the classification head
+EPOCHS_FINETUNE = 10   # Phase 2: fine-tune top layers of backbone
+BATCH_SIZE      = 32
 # ──────────────────────────────────────────────────────────────────────────────
 
 
@@ -40,24 +30,24 @@ def get_callbacks(model_path: Path):
             monitor="val_accuracy",
             patience=5,
             restore_best_weights=True,
-            verbose=1
+            verbose=1,
         ),
         tf.keras.callbacks.ModelCheckpoint(
             filepath=str(model_path),
             monitor="val_accuracy",
             save_best_only=True,
-            verbose=1
+            verbose=1,
         ),
         tf.keras.callbacks.ReduceLROnPlateau(
             monitor="val_loss",
             factor=0.5,
             patience=3,
             min_lr=1e-7,
-            verbose=1
+            verbose=1,
         ),
         tf.keras.callbacks.TensorBoard(
             log_dir="logs",
-            histogram_freq=1
+            histogram_freq=1,
         ),
     ]
 
@@ -66,16 +56,16 @@ def plot_training_history(history_dict: dict, save_dir: Path) -> None:
     save_dir.mkdir(parents=True, exist_ok=True)
     fig, axes = plt.subplots(1, 2, figsize=(14, 5))
 
-    axes[0].plot(history_dict["accuracy"], label="Train accuracy", marker="o")
-    axes[0].plot(history_dict["val_accuracy"], label="Val accuracy", marker="o")
+    axes[0].plot(history_dict["accuracy"],     label="Train accuracy", marker="o")
+    axes[0].plot(history_dict["val_accuracy"], label="Val accuracy",   marker="o")
     axes[0].set_title("Accuracy")
     axes[0].set_xlabel("Epoch")
     axes[0].set_ylabel("Accuracy")
     axes[0].legend()
     axes[0].grid(True, alpha=0.3)
 
-    axes[1].plot(history_dict["loss"], label="Train loss", marker="o")
-    axes[1].plot(history_dict["val_loss"], label="Val loss", marker="o")
+    axes[1].plot(history_dict["loss"],     label="Train loss", marker="o")
+    axes[1].plot(history_dict["val_loss"], label="Val loss",   marker="o")
     axes[1].set_title("Loss")
     axes[1].set_xlabel("Epoch")
     axes[1].set_ylabel("Loss")
@@ -100,7 +90,7 @@ def main():
 
     # Save class names so predict.py and app.py can load them
     with open(MODEL_DIR / "class_names.json", "w") as f:
-        json.dump(class_names, f)
+        json.dump(class_names, f, indent=2)
 
     # ── Phase 1: Train head only ───────────────────────────────────────────
     print("\nPhase 1 — Training classification head (backbone frozen)...")
@@ -108,7 +98,7 @@ def main():
     model.compile(
         optimizer=tf.keras.optimizers.Adam(learning_rate=1e-3),
         loss="sparse_categorical_crossentropy",
-        metrics=["accuracy"]
+        metrics=["accuracy"],
     )
     model.summary()
 
@@ -123,9 +113,9 @@ def main():
     print("\nPhase 2 — Fine-tuning top layers of EfficientNetB0...")
     model = unfreeze_top_layers(model, num_layers=20)
     model.compile(
-        optimizer=tf.keras.optimizers.Adam(learning_rate=1e-5),  # Lower LR!
+        optimizer=tf.keras.optimizers.Adam(learning_rate=1e-5),  # lower LR for fine-tuning
         loss="sparse_categorical_crossentropy",
-        metrics=["accuracy"]
+        metrics=["accuracy"],
     )
 
     history2 = model.fit(
@@ -141,15 +131,15 @@ def main():
         combined[key] = history1.history[key] + history2.history[key]
 
     with open(HISTORY_PATH, "w") as f:
-        json.dump(combined, f)
+        json.dump(combined, f, indent=2)
 
     plot_training_history(combined, PLOTS_DIR)
 
     # ── Final evaluation ──────────────────────────────────────────────────
     print("\nEvaluating on validation set...")
     loss, acc = model.evaluate(val_ds, verbose=1)
-    print(f"\nFinal val accuracy: {acc:.4f} ({acc*100:.2f}%)")
-    print(f"Final val loss:     {loss:.4f}")
+    print(f"\nFinal val accuracy : {acc:.4f}  ({acc*100:.2f}%)")
+    print(f"Final val loss     : {loss:.4f}")
     print(f"\nModel saved → {MODEL_PATH}")
 
 
