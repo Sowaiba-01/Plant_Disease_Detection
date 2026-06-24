@@ -1,7 +1,6 @@
 import tensorflow as tf
 from pathlib import Path
 
-
 IMG_SIZE  = (224, 224)
 BATCH_SIZE = 32
 AUTOTUNE  = tf.data.AUTOTUNE
