@@ -2,22 +2,34 @@ import tensorflow as tf
 from tensorflow.keras import layers, Model
 
 
-def build_model(num_classes: int, input_shape: tuple = (224, 224, 3)) -> Model:
+def build_model(
+    num_classes: int,
+    input_shape: tuple = (224, 224, 3),
+    load_weights: bool = True,          # FIX: set False in tests to skip 29MB download
+) -> Model:
     """
     Build a plant disease classifier using EfficientNetB0 transfer learning.
-    Replaces the old 3-layer custom CNN with a pretrained backbone.
-    Expected accuracy: 93-97% on PlantVillage vs ~80% before.
+
+    Args:
+        num_classes:  number of output classes (38 for full PlantVillage)
+        input_shape:  image dimensions expected by the model
+        load_weights: load ImageNet weights (True for training, False for tests/CI)
+
+    Returns:
+        Compiled-ready Keras Model
     """
+    weights = "imagenet" if load_weights else None
+
     base = tf.keras.applications.EfficientNetB0(
         include_top=False,
-        weights="imagenet",
-        input_shape=input_shape
+        weights=weights,
+        input_shape=input_shape,
     )
-    base.trainable = False  # Freeze backbone — train only the head first
+    base.trainable = False  # freeze backbone — train only the head first
 
     inputs = tf.keras.Input(shape=input_shape)
 
-    # EfficientNet expects pixel values in [0, 255] — no manual rescaling needed
+    # EfficientNet expects pixel values in [0, 255] — do NOT rescale to [0, 1]
     x = base(inputs, training=False)
     x = layers.GlobalAveragePooling2D()(x)
     x = layers.BatchNormalization()(x)
@@ -33,7 +45,14 @@ def build_model(num_classes: int, input_shape: tuple = (224, 224, 3)) -> Model:
 def unfreeze_top_layers(model: Model, num_layers: int = 20) -> Model:
     """
     Fine-tune: unfreeze the top N layers of EfficientNetB0 after initial training.
-    Call this after the head has converged (epoch ~10), then retrain with low LR.
+    Call after the head has converged (~epoch 10-15), then retrain with low LR (1e-5).
+
+    Args:
+        model:      the trained model from build_model()
+        num_layers: how many layers from the top of EfficientNetB0 to unfreeze
+
+    Returns:
+        model with top N backbone layers set to trainable
     """
     base = model.layers[1]  # EfficientNetB0 is the second layer
     base.trainable = True
@@ -44,10 +63,6 @@ def unfreeze_top_layers(model: Model, num_layers: int = 20) -> Model:
     return model
 
 
-def get_model_summary(num_classes: int) -> None:
-    model = build_model(num_classes)
-    model.summary()
-
-
 if __name__ == "__main__":
-    get_model_summary(num_classes=8)
+    m = build_model(num_classes=38, load_weights=False)
+    m.summary()
