@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: [ main ]
 
+env:
+  PYTHONPATH: ${{ github.workspace }}
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -19,8 +22,18 @@ jobs:
         with:
           python-version: "3.10"
 
-      - name: Install dependencies
-        run: pip install -r requirements.txt
+      - name: Cache pip dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install test dependencies only
+        run: |
+          pip install --upgrade pip
+          pip install pytest pytest-cov numpy Pillow
 
       - name: Run tests
         run: pytest tests/ -v --cov=src --cov-report=term-missing
