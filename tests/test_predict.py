@@ -1,9 +1,8 @@
 
 import json
 import os
-import tempfile
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import numpy as np
 import pytest
@@ -14,13 +13,13 @@ from PIL import Image
 
 @pytest.fixture
 def dummy_image_path(tmp_path):
-    """Create a 224x224 dummy RGB image for testing — no real leaf needed."""
+    """224x224 dummy RGB image — no real leaf needed."""
     img = Image.fromarray(
         np.random.randint(0, 255, (224, 224, 3), dtype=np.uint8)
     )
-    img_path = tmp_path / "test_leaf.jpg"
-    img.save(img_path)
-    return str(img_path)
+    path = tmp_path / "test_leaf.jpg"
+    img.save(path)
+    return str(path)
 
 
 @pytest.fixture
@@ -39,33 +38,33 @@ def dummy_class_names():
 
 @pytest.fixture
 def mock_model(dummy_class_names):
-    """Mock Keras model that returns a valid softmax-like output (sums to 1)."""
+    """Mock Keras model — returns valid softmax output. No TF needed."""
     model = MagicMock()
-    num_classes = len(dummy_class_names)
-    raw = np.random.rand(1, num_classes).astype(np.float32)
-    raw = raw / raw.sum()                  # normalise to sum to 1
+    n = len(dummy_class_names)
+    raw = np.random.rand(1, n).astype(np.float32)
+    raw = raw / raw.sum()
     model.predict.return_value = raw
     return model
 
 
 @pytest.fixture
 def high_confidence_mock_model(dummy_class_names):
-    """Mock model that always returns very high confidence on class 0."""
+    """Mock model that always returns 99% confidence on class 0."""
     model = MagicMock()
-    num_classes = len(dummy_class_names)
-    scores = np.zeros((1, num_classes), dtype=np.float32)
+    n = len(dummy_class_names)
+    scores = np.zeros((1, n), dtype=np.float32)
     scores[0, 0] = 0.99
-    scores[0, 1:] = 0.01 / (num_classes - 1)
+    scores[0, 1:] = 0.01 / (n - 1)
     model.predict.return_value = scores
     return model
 
 
 @pytest.fixture
 def low_confidence_mock_model(dummy_class_names):
-    """Mock model that returns nearly uniform (low confidence) output."""
+    """Mock model that returns uniform (low confidence) output."""
     model = MagicMock()
-    num_classes = len(dummy_class_names)
-    scores = np.full((1, num_classes), 1.0 / num_classes, dtype=np.float32)
+    n = len(dummy_class_names)
+    scores = np.full((1, n), 1.0 / n, dtype=np.float32)
     model.predict.return_value = scores
     return model
 
@@ -76,9 +75,7 @@ class TestPreprocessImage:
     def test_output_shape(self, dummy_image_path):
         from src.predict import preprocess_image
         result = preprocess_image(dummy_image_path)
-        assert result.shape == (1, 224, 224, 3), (
-            f"Expected (1, 224, 224, 3), got {result.shape}"
-        )
+        assert result.shape == (1, 224, 224, 3)
 
     def test_output_dtype_is_float32(self, dummy_image_path):
         from src.predict import preprocess_image
@@ -92,40 +89,38 @@ class TestPreprocessImage:
         assert result.min() >= 0.0
         assert result.max() <= 255.0
 
-    def test_handles_non_rgb_image(self, tmp_path):
-        """RGBA images should be converted to RGB without crashing."""
+    def test_handles_rgba_image(self, tmp_path):
+        """RGBA images must be converted to RGB without crashing."""
         from src.predict import preprocess_image
         img = Image.fromarray(
             np.random.randint(0, 255, (100, 100, 4), dtype=np.uint8), mode="RGBA"
         )
-        img_path = str(tmp_path / "rgba.png")
-        img.save(img_path)
-        result = preprocess_image(img_path)
+        path = str(tmp_path / "rgba.png")
+        img.save(path)
+        result = preprocess_image(path)
         assert result.shape == (1, 224, 224, 3)
 
 
 # ── predict ────────────────────────────────────────────────────────────────────
 
 class TestPredict:
-    def test_returns_dict_with_required_keys(self, dummy_image_path, mock_model, dummy_class_names):
+    def test_returns_required_keys(self, dummy_image_path, mock_model, dummy_class_names):
         from src.predict import predict
         result = predict(dummy_image_path, model=mock_model, class_names=dummy_class_names)
         for key in ("predicted_class", "confidence", "top3", "all_scores", "low_confidence"):
-            assert key in result, f"Missing key: {key}"
+            assert key in result
 
     def test_predicted_class_is_valid_or_unknown(self, dummy_image_path, mock_model, dummy_class_names):
         from src.predict import predict
         result = predict(dummy_image_path, model=mock_model, class_names=dummy_class_names)
         assert result["predicted_class"] in dummy_class_names or result["predicted_class"] == "Unknown"
 
-    def test_confidence_between_0_and_1(self, dummy_image_path, mock_model, dummy_class_names):
+    def test_confidence_in_range(self, dummy_image_path, mock_model, dummy_class_names):
         from src.predict import predict
         result = predict(dummy_image_path, model=mock_model, class_names=dummy_class_names)
-        assert 0.0 <= result["confidence"] <= 1.0, (
-            f"Confidence {result['confidence']} out of [0, 1]"
-        )
+        assert 0.0 <= result["confidence"] <= 1.0
 
-    def test_top3_has_exactly_three_items(self, dummy_image_path, mock_model, dummy_class_names):
+    def test_top3_length(self, dummy_image_path, mock_model, dummy_class_names):
         from src.predict import predict
         result = predict(dummy_image_path, model=mock_model, class_names=dummy_class_names)
         assert len(result["top3"]) == 3
@@ -134,7 +129,7 @@ class TestPredict:
         from src.predict import predict
         result = predict(dummy_image_path, model=mock_model, class_names=dummy_class_names)
         confs = [item["confidence"] for item in result["top3"]]
-        assert confs == sorted(confs, reverse=True), "Top-3 must be sorted highest → lowest"
+        assert confs == sorted(confs, reverse=True)
 
     def test_all_scores_has_all_classes(self, dummy_image_path, mock_model, dummy_class_names):
         from src.predict import predict
@@ -147,8 +142,7 @@ class TestPredict:
         assert result["low_confidence"] is False
         assert result["predicted_class"] != "Unknown"
 
-    def test_low_confidence_flagged_as_unknown(self, dummy_image_path, low_confidence_mock_model, dummy_class_names):
-        """When confidence is below threshold, predicted_class must be 'Unknown'."""
+    def test_low_confidence_returns_unknown(self, dummy_image_path, low_confidence_mock_model, dummy_class_names):
         from src.predict import predict
         result = predict(dummy_image_path, model=low_confidence_mock_model, class_names=dummy_class_names)
         assert result["low_confidence"] is True
@@ -160,11 +154,10 @@ class TestPredict:
             predict("/nonexistent/path/leaf.jpg", model=mock_model, class_names=dummy_class_names)
 
 
-# ── model building (weights mocked to avoid 29MB download in CI) ──────────────
+# ── model building (no TF import at module level — lazy inside functions) ──────
 
 class TestModelBuilding:
     def test_model_output_shape(self):
-        """FIX: use load_weights=False to skip ImageNet download in CI/tests."""
         from src.model import build_model
         model = build_model(num_classes=8, load_weights=False)
         assert model.output_shape == (None, 8)
@@ -175,7 +168,6 @@ class TestModelBuilding:
         assert model.input_shape == (None, 224, 224, 3)
 
     def test_model_compiles_without_error(self):
-        import tensorflow as tf
         from src.model import build_model
         model = build_model(num_classes=8, load_weights=False)
         model.compile(
@@ -188,7 +180,7 @@ class TestModelBuilding:
         from src.model import build_model
         for n in [2, 10, 38]:
             model = build_model(num_classes=n, load_weights=False)
-            assert model.output_shape == (None, n), f"Failed for num_classes={n}"
+            assert model.output_shape == (None, n)
 
     def test_custom_input_shape(self):
         from src.model import build_model
@@ -209,7 +201,6 @@ class TestLoadModelAndClasses:
 
     def test_missing_class_names_raises_file_not_found(self, tmp_path):
         from src.predict import load_model_and_classes
-        # Create a dummy model file so the first check passes
         fake_model = tmp_path / "model.keras"
         fake_model.write_text("fake")
         with pytest.raises(FileNotFoundError, match="Class names not found"):
