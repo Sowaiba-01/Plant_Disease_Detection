@@ -1,4 +1,9 @@
+"""
+Prediction utility for plant disease detection.
 
+Usage (from project root):
+    python -m src.predict --image path/to/leaf.jpg
+"""
 
 import argparse
 import json
@@ -7,14 +12,16 @@ import tempfile
 from pathlib import Path
 
 import numpy as np
-import tensorflow as tf
 from PIL import Image
 
+# tensorflow is imported LAZILY inside functions only — so this module
+# can be imported in tests without TF being installed in CI.
 
-IMG_SIZE         = (224, 224)
-MODEL_PATH       = Path("models/best_model.keras")
-CLASS_NAMES_PATH = Path("models/class_names.json")
-CONFIDENCE_THRESHOLD = 0.50   # FIX: reject predictions below this — old code had no threshold
+
+IMG_SIZE             = (224, 224)
+MODEL_PATH           = Path("models/best_model.keras")
+CLASS_NAMES_PATH     = Path("models/class_names.json")
+CONFIDENCE_THRESHOLD = 0.50
 
 
 def load_model_and_classes(
@@ -33,7 +40,9 @@ def load_model_and_classes(
             f"Run:  python -m src.train   to generate them."
         )
 
+    import tensorflow as tf  # lazy import — only needed when actually loading a model
     model = tf.keras.models.load_model(str(model_path))
+
     with open(class_names_path) as f:
         class_names = json.load(f)
 
@@ -41,13 +50,15 @@ def load_model_and_classes(
 
 
 def preprocess_image(image_path: str) -> np.ndarray:
-    """Load and preprocess a single image for EfficientNetB0 inference.
+    """
+    Load and preprocess a single image for EfficientNetB0 inference.
     EfficientNet expects pixel values in [0, 255] — no division by 255.
+    Only depends on Pillow + NumPy — no TensorFlow needed.
     """
     img = Image.open(image_path).convert("RGB")
     img = img.resize(IMG_SIZE)
-    img_array = np.array(img, dtype=np.float32)          # keep [0, 255] range
-    img_array = np.expand_dims(img_array, axis=0)        # add batch dimension → (1, 224, 224, 3)
+    img_array = np.array(img, dtype=np.float32)       # [0, 255]
+    img_array = np.expand_dims(img_array, axis=0)     # (1, 224, 224, 3)
     return img_array
 
 
@@ -56,9 +67,9 @@ def predict(image_path: str, model=None, class_names=None) -> dict:
     Run inference on a single image.
 
     Returns dict with keys:
-        predicted_class  – top predicted class name (or "Unknown" if low confidence)
+        predicted_class  – top class name (or "Unknown" if low confidence)
         confidence       – float in [0, 1]
-        top3             – list of {class, confidence} dicts, sorted descending
+        top3             – list of {class, confidence} dicts, descending
         all_scores       – dict of all class probabilities
         low_confidence   – True if confidence < CONFIDENCE_THRESHOLD
     """
@@ -67,21 +78,18 @@ def predict(image_path: str, model=None, class_names=None) -> dict:
 
     img_array   = preprocess_image(image_path)
     predictions = model.predict(img_array, verbose=0)
-    scores      = predictions[0]                         # shape: (num_classes,)
+    scores      = predictions[0]
 
     top_idx    = int(np.argmax(scores))
     confidence = float(scores[top_idx])
 
-    # Top-3 predictions sorted highest → lowest
     top3_indices = np.argsort(scores)[::-1][:3]
     top3 = [
         {"class": class_names[i], "confidence": float(scores[i])}
         for i in top3_indices
     ]
 
-    # FIX: confidence threshold — flag low-confidence predictions instead of
-    # silently returning a wrong answer (e.g. when user uploads a non-leaf image)
-    low_confidence = confidence < CONFIDENCE_THRESHOLD
+    low_confidence  = confidence < CONFIDENCE_THRESHOLD
     predicted_class = class_names[top_idx] if not low_confidence else "Unknown"
 
     return {
