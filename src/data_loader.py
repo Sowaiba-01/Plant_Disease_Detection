@@ -2,15 +2,15 @@ import tensorflow as tf
 from pathlib import Path
 
 
-IMG_SIZE = (224, 224)
+IMG_SIZE  = (224, 224)
 BATCH_SIZE = 32
-AUTOTUNE = tf.data.AUTOTUNE
+AUTOTUNE  = tf.data.AUTOTUNE
 
 
 def get_augmentation_layer() -> tf.keras.Sequential:
     """
-    Data augmentation applied ONLY to training set.
-    Helps the model generalise — your old code had zero augmentation.
+    Data augmentation applied ONLY during training.
+    Applied AFTER cache so each epoch sees different augmentations.
     """
     return tf.keras.Sequential([
         tf.keras.layers.RandomFlip("horizontal"),
@@ -23,11 +23,13 @@ def get_augmentation_layer() -> tf.keras.Sequential:
 
 def load_datasets(data_dir: str, batch_size: int = BATCH_SIZE):
     """
-    Load train and validation datasets from a directory.
-    Replaces the hardcoded path in your old main5.py.
+    Load train and validation datasets from a directory structured as:
+        data_dir/
+            ClassName1/  image1.jpg ...
+            ClassName2/  image1.jpg ...
 
     Args:
-        data_dir: path to dataset root (set via DATA_DIR env var in train.py)
+        data_dir:   path to dataset root (set via DATA_DIR env var in train.py)
         batch_size: images per batch
 
     Returns:
@@ -38,7 +40,7 @@ def load_datasets(data_dir: str, batch_size: int = BATCH_SIZE):
         raise FileNotFoundError(
             f"Dataset not found at: {data_path}\n"
             f"Download PlantVillage from: https://www.kaggle.com/datasets/emmarex/plantdisease\n"
-            f"Then set DATA_DIR environment variable to its path."
+            f"Then set the DATA_DIR environment variable to its path."
         )
 
     train_ds = tf.keras.preprocessing.image_dataset_from_directory(
@@ -65,12 +67,14 @@ def load_datasets(data_dir: str, batch_size: int = BATCH_SIZE):
 
     augment = get_augmentation_layer()
 
-    # Apply augmentation to training only, then cache + prefetch both
+    # FIX: cache RAW images first, THEN augment so each epoch gets fresh augmentations.
+    # Old order was: augment → cache → shuffle (froze augmentations, defeating the purpose).
     train_ds = (
         train_ds
-        .map(lambda x, y: (augment(x, training=True), y), num_parallel_calls=AUTOTUNE)
-        .cache()
-        .shuffle(1000)
+        .cache()                                                        # cache raw pixels
+        .shuffle(1000, seed=42)
+        .map(lambda x, y: (augment(x, training=True), y),             # augment after cache
+             num_parallel_calls=AUTOTUNE)
         .prefetch(buffer_size=AUTOTUNE)
     )
 
