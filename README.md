@@ -1,33 +1,85 @@
 # Plant Disease Detection
 
-A deep learning system that detects and classifies plant diseases from leaf images using a Convolutional Neural Network (CNN).
+A deep learning system that detects and classifies **38 plant disease categories** from leaf images, built with EfficientNetB0 transfer learning and deployed via a Gradio web interface.
 
-## Overview
+---
 
-Plant diseases are a major threat to global food security. Early detection helps farmers act before crops are lost. This project uses a CNN trained on the PlantVillage dataset to classify leaf images into 8 categories — identifying whether a plant is healthy or affected by a specific disease.
+## Results
+
+| Metric | Value |
+|---|---|
+| Model | EfficientNetB0 (fine-tuned) |
+| Dataset | PlantVillage (54,305 images) |
+| Classes | 38 (14 crop species) |
+| Expected val accuracy | 93–97% |
+| Input size | 224 × 224 RGB |
+| Confidence threshold | 50% (low-confidence inputs rejected) |
+
+---
 
 
-## How It Works
+## Quickstart
 
-1. **Training (`training.py`)** — Loads labeled leaf images, builds a CNN with 3 convolutional layers, and trains it to classify images into 8 disease/health categories.
-2. **Prediction (`prediction.py`)** — Loads the trained model, lets you pick an image via a file dialog, and predicts the disease class with a confidence score.
+### 1. Install dependencies
+```bash
+pip install -r requirements.txt
+```
+
+### 2. Download the dataset
+Download [PlantVillage from Kaggle](https://www.kaggle.com/datasets/emmarex/plantdisease) and extract to `data/PlantVillage/`.
+
+### 3. Train the model
+```bash
+export DATA_DIR="data/PlantVillage"   # Linux/Mac
+set DATA_DIR=data/PlantVillage        # Windows
+
+python -m src.train
+```
+This runs two training phases:
+- **Phase 1** (15 epochs): trains only the classification head (backbone frozen)
+- **Phase 2** (10 epochs): fine-tunes top 20 layers of EfficientNetB0 at low LR
+
+Model is saved to `models/best_model.keras`.
+
+### 4. Run the web app
+```bash
+python app.py
+```
+Open `http://localhost:7860` in your browser.
+
+### 5. Run inference from CLI
+```bash
+python -m src.predict --image path/to/leaf.jpg
+```
+
+---
+
+## Running Tests
+```bash
+pytest tests/ -v
+pytest tests/ -v --cov=src --cov-report=term-missing
+```
+Tests use mocked models — no GPU or downloaded weights required.
+
+---
 
 ## Tech Stack
 
-- Python
-- TensorFlow / Keras
-- EasyGUI (file selection)
-- NumPy, Matplotlib
+- **Python 3.9+**
+- **TensorFlow / Keras** — model training and inference
+- **EfficientNetB0** — pretrained backbone (ImageNet weights)
+- **Gradio** — web interface
+- **Pillow / NumPy** — image processing
+- **pytest** — testing
+
+---
 
 ## Dataset
 
-Trained on the [PlantVillage Dataset](https://github.com/spMohanty/PlantVillage-Dataset) — a public dataset of labeled plant leaf images.
+[PlantVillage Dataset](https://github.com/spMohanty/PlantVillage-Dataset) — 54,305 labeled leaf images across 38 classes (14 crop species).
 
-
-## Notes
-
-- Update the `data_dir` and `model_path` variables in `training.py` and `prediction.py` to match your local dataset/model location before running.
+---
 
 ## License
 
-This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
+MIT License — see [LICENSE](LICENSE).
