@@ -1,4 +1,4 @@
-# Plant Disease Detection
+# AgroVision-Net
 
 ![Tests](https://github.com/Sowaiba-01/Plant_Disease_Detection/actions/workflows/tests.yml/badge.svg)
 ![Python](https://img.shields.io/badge/python-3.10-blue)
